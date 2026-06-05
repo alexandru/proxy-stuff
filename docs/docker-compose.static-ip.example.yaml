@@ -12,8 +12,8 @@ services:
     container_name: api-proxy
     networks:
       qnet-static:
-        ipv4_address: 192.168.0.121
-        mac_address: "02:42:53:7B:12:BE"
+        ipv4_address: 192.168.0.114
+        mac_address: "AE:13:F8:F7:18:43"
     ports:
       - 80:80
       - 443:443
@@ -30,11 +30,9 @@ services:
 
       ROUTE_MAP: >
         {
-          "/claude/v1": "https://api.anthropic.com/v1",
-          "/codex/v1": "https://api.openai.com/v1",
-          "/opencode-go/v1": "http://opencode-go:1235/v1",
-          "/deepseek/v1": "https://api.deepseek.com",
-          "/kimi/v1": "https://api.moonshot.ai/v1"
+          "/go/v1": "https://opencode.ai/zen/go/v1",
+          "/ds/v1": "https://api.deepseek.com",
+          "/km/v1": "https://api.kimi.com/coding/v1"
         }
     volumes:
       - proxy_caddy_data:/data:rw
