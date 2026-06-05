@@ -5,15 +5,18 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
-      # Uncomment for HTTPS mode.
-      # - "443:443"
+      - "443:443"
     environment:
-      ENABLE_HTTPS: "false"
-      HTTP_PORT: "80"
+      ENABLE_HTTPS: "true"
+      PROXY_DOMAIN: "api-proxy.example.com"
+      CLOUDFLARE_API_TOKEN: "${CLOUDFLARE_API_TOKEN}"
       ROUTE_MAP: >
         {
           "/claude/v1": "https://api.anthropic.com/v1",
-          "/codex/v1": "https://api.openai.com/v1"
+          "/codex/v1": "https://api.openai.com/v1",
+          "/opencode-go/v1": "http://opencode-go:1235/v1",
+          "/deepseek/v1": "https://api.deepseek.com",
+          "/kimi/v1": "https://api.moonshot.ai/v1"
         }
     volumes:
       - caddy_data:/data

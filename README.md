@@ -21,9 +21,20 @@ All runtime configuration is supplied through environment variables, so the imag
 ROUTE_MAP: >
   {
     "/claude/v1": "https://api.anthropic.com/v1",
-    "/codex/v1": "https://api.openai.com/v1"
+    "/codex/v1": "https://api.openai.com/v1",
+    "/opencode-go/v1": "http://opencode-go:1235/v1",
+    "/deepseek/v1": "https://api.deepseek.com",
+    "/kimi/v1": "https://api.moonshot.ai/v1"
   }
 ```
+
+Provider notes:
+
+- Claude: `https://api.anthropic.com/v1` uses Anthropic's API shape, not OpenAI's API shape.
+- Codex/OpenAI: `https://api.openai.com/v1`.
+- OpenCode Go: OpenCode documents this as an OpenCode-managed provider, not a generic public OpenAI-compatible URL. The sample uses `http://opencode-go:1235/v1` as a placeholder for a same-network OpenAI-compatible OpenCode Go/local endpoint; adjust it to your actual endpoint if different.
+- DeepSeek: `https://api.deepseek.com`.
+- Kimi/Moonshot: `https://api.moonshot.ai/v1`.
 
 ### Optional
 
@@ -34,7 +45,7 @@ ROUTE_MAP: >
 
 ## HTTP deployment
 
-Use `docker-compose.example.yaml`, replace the image name, then deploy it in QNAP Container Station.
+Use `docs/docker-compose.example.yaml` or the full QNAP static-IP example in `docs/docker-compose.qnap-static-ip.example.yaml`, then deploy it in QNAP Container Station.
 
 ```yaml
 services:
@@ -48,9 +59,29 @@ services:
       ROUTE_MAP: >
         {
           "/claude/v1": "https://api.anthropic.com/v1",
-          "/codex/v1": "https://api.openai.com/v1"
+          "/codex/v1": "https://api.openai.com/v1",
+          "/opencode-go/v1": "http://opencode-go:1235/v1",
+          "/deepseek/v1": "https://api.deepseek.com",
+          "/kimi/v1": "https://api.moonshot.ai/v1"
         }
 ```
+
+## QNAP static LAN IP deployment
+
+Use `docs/docker-compose.qnap-static-ip.example.yaml` for a QNAP `qnet` deployment that assigns this container its own LAN IP:
+
+```text
+192.168.0.121
+```
+
+The sample uses:
+
+- `qnet-static` network on `qvs0`
+- static MAC `02:42:53:7B:12:BE`
+- persistent Caddy `/data` and `/config` volumes
+- `read_only: true` with the generated Caddyfile written to `/tmp/Caddyfile`
+
+If you enable HTTPS, point local DNS for your `PROXY_DOMAIN` to `192.168.0.121`.
 
 ## HTTPS with Cloudflare DNS
 
@@ -79,7 +110,10 @@ services:
       ROUTE_MAP: >
         {
           "/claude/v1": "https://api.anthropic.com/v1",
-          "/codex/v1": "https://api.openai.com/v1"
+          "/codex/v1": "https://api.openai.com/v1",
+          "/opencode-go/v1": "http://opencode-go:1235/v1",
+          "/deepseek/v1": "https://api.deepseek.com",
+          "/kimi/v1": "https://api.moonshot.ai/v1"
         }
     volumes:
       - caddy_data:/data
@@ -87,6 +121,12 @@ services:
 ```
 
 Keep `/data` mounted so Caddy can retain account and certificate state across restarts.
+
+Compose samples are in `docs/`:
+
+- `docs/docker-compose.example.yaml`
+- `docs/docker-compose.https-cloudflare.example.yaml`
+- `docs/docker-compose.qnap-static-ip.example.yaml`
 
 ## Publishing the image
 

@@ -1,0 +1,64 @@
+# Full QNAP Container Station sample using a qnet static LAN IP.
+#
+# This assigns the proxy container to 192.168.0.121 on the LAN, inspired by
+# QNAP qnet setups where containers receive their own LAN addresses.
+#
+# If you enable HTTPS, configure local DNS so your hostname points to
+# 192.168.0.121, then set PROXY_DOMAIN and CLOUDFLARE_API_TOKEN below.
+
+services:
+  api-proxy:
+    image: ghcr.io/alexandru/proxy-stuff:latest
+    container_name: api-proxy
+    networks:
+      qnet-static:
+        ipv4_address: 192.168.0.121
+        mac_address: "02:42:53:7B:12:BE"
+    ports:
+      - 80:80
+      - 443:443
+    environment:
+      ENABLE_HTTPS: "false"
+      # For HTTPS mode:
+      # ENABLE_HTTPS: "true"
+      # PROXY_DOMAIN: "api-proxy.example.com"
+      # CLOUDFLARE_API_TOKEN: "your-zone-scoped-cloudflare-dns-token"
+
+      # With read_only enabled, write the generated Caddyfile to tmpfs instead
+      # of /etc/caddy/Caddyfile.
+      CADDYFILE_PATH: "/tmp/Caddyfile"
+
+      ROUTE_MAP: >
+        {
+          "/claude/v1": "https://api.anthropic.com/v1",
+          "/codex/v1": "https://api.openai.com/v1",
+          "/opencode-go/v1": "http://opencode-go:1235/v1",
+          "/deepseek/v1": "https://api.deepseek.com",
+          "/kimi/v1": "https://api.moonshot.ai/v1"
+        }
+    volumes:
+      - proxy_caddy_data:/data:rw
+      - proxy_caddy_config:/config:rw
+    restart: always
+    read_only: true
+    tmpfs:
+      - /run:exec
+      - /tmp
+      - /var/tmp
+
+volumes:
+  proxy_caddy_data:
+  proxy_caddy_config:
+
+networks:
+  qnet-static:
+    driver: qnet
+    driver_opts:
+      iface: "qvs0"
+    ipam:
+      driver: qnet
+      options:
+        iface: "qvs0"
+      config:
+        - subnet: 192.168.0.0/24
+          gateway: 192.168.0.1
