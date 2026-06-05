@@ -20,13 +20,14 @@ publish: require-image test
 	docker buildx build --platform $(PLATFORMS) -t $(IMAGE):$(TAG) --push .
 
 publish-platform: require-image test
-	docker buildx build --platform $(PLATFORM) -t $(IMAGE):$(TAG)-$(ARCH) --push .
+	docker build --platform $(PLATFORM) -t $(IMAGE):$(TAG)-$(ARCH) .
+	docker push $(IMAGE):$(TAG)-$(ARCH)
 
 publish-manifest: require-image
-	docker buildx imagetools create \
-		--tag $(IMAGE):$(TAG) \
+	docker manifest create $(IMAGE):$(TAG) \
 		$(IMAGE):$(TAG)-amd64 \
 		$(IMAGE):$(TAG)-arm64
+	docker manifest push $(IMAGE):$(TAG)
 
 smoke-test:
 	./scripts/local-smoke-test.sh
