@@ -1,0 +1,24 @@
+services:
+  api-proxy:
+    image: ghcr.io/alexandru/proxy-stuff:latest
+    container_name: api-proxy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      ENABLE_HTTPS: "true"
+      PROXY_DOMAIN: "api-proxy.example.com"
+      CLOUDFLARE_API_TOKEN: "${CLOUDFLARE_API_TOKEN}"
+      ROUTE_MAP: >
+        {
+          "/claude/v1": "https://api.anthropic.com/v1",
+          "/codex/v1": "https://api.openai.com/v1"
+        }
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:

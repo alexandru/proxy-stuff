@@ -1,0 +1,190 @@
+# QNAP OpenAI-Compatible API Proxy
+
+Docker image project for a LAN reverse proxy that routes path prefixes to OpenAI-compatible API upstreams.
+
+Example:
+
+```text
+http://192.168.0.121/claude/v1/responses
+-> https://api.anthropic.com/v1/responses
+```
+
+## Configuration
+
+All runtime configuration is supplied through environment variables, so the image can be deployed from QNAP Container Station using only `docker-compose.yaml`.
+
+### Required
+
+- `ROUTE_MAP`: JSON object mapping local path prefixes to upstream base URLs.
+
+```yaml
+ROUTE_MAP: >
+  {
+    "/claude/v1": "https://api.anthropic.com/v1",
+    "/codex/v1": "https://api.openai.com/v1"
+  }
+```
+
+### Optional
+
+- `ENABLE_HTTPS`: `true` or `false`; defaults to `false`.
+- `HTTP_PORT`: internal HTTP listen port; defaults to `80`.
+- `PROXY_DOMAIN`: required when `ENABLE_HTTPS=true`.
+- `CLOUDFLARE_API_TOKEN`: required when `ENABLE_HTTPS=true`.
+
+## HTTP deployment
+
+Use `docker-compose.example.yaml`, replace the image name, then deploy it in QNAP Container Station.
+
+```yaml
+services:
+  api-proxy:
+    image: ghcr.io/alexandru/proxy-stuff:latest
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    environment:
+      ENABLE_HTTPS: "false"
+      ROUTE_MAP: >
+        {
+          "/claude/v1": "https://api.anthropic.com/v1",
+          "/codex/v1": "https://api.openai.com/v1"
+        }
+```
+
+## HTTPS with Cloudflare DNS
+
+Trusted HTTPS for an internal LAN service requires a real domain. Configure local DNS so your chosen hostname points to the QNAP IP, for example:
+
+```text
+api-proxy.example.com -> 192.168.0.121
+```
+
+The container uses Caddy with the Cloudflare DNS plugin. Caddy obtains and renews certificates automatically by creating temporary `_acme-challenge` TXT records through the Cloudflare API.
+
+Create a Cloudflare API token scoped to the zone with DNS edit permission, then pass it as `CLOUDFLARE_API_TOKEN`.
+
+```yaml
+services:
+  api-proxy:
+    image: ghcr.io/alexandru/proxy-stuff:latest
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      ENABLE_HTTPS: "true"
+      PROXY_DOMAIN: "api-proxy.example.com"
+      CLOUDFLARE_API_TOKEN: "${CLOUDFLARE_API_TOKEN}"
+      ROUTE_MAP: >
+        {
+          "/claude/v1": "https://api.anthropic.com/v1",
+          "/codex/v1": "https://api.openai.com/v1"
+        }
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+```
+
+Keep `/data` mounted so Caddy can retain account and certificate state across restarts.
+
+## Publishing the image
+
+The workflow in `.github/workflows/publish-image.yaml` is manually dispatched.
+
+1. Push this repository to GitHub.
+2. Open **Actions**.
+3. Run **Publish Docker image**.
+4. Choose a tag, for example `latest`.
+
+The image will be published to:
+
+```text
+ghcr.io/alexandru/proxy-stuff:<tag>
+```
+
+## Local tests
+
+```sh
+python3 -m unittest discover -s tests
+```
+
+Generate a Caddyfile manually:
+
+```sh
+ROUTE_MAP='{ "/claude/v1": "https://api.anthropic.com/v1" }' \
+  python3 scripts/generate-caddyfile.py
+```
+
+Build locally:
+
+```sh
+docker build -t api-proxy:local .
+```
+
+Build the QNAP x64 target locally:
+
+```sh
+make build-qnap
+```
+
+By default this targets `linux/amd64`, which is the expected architecture for x64 QNAP systems.
+
+Run locally:
+
+```sh
+docker run --rm -p 8080:80 \
+  -e ENABLE_HTTPS=false \
+  -e 'ROUTE_MAP={"/claude/v1":"https://api.anthropic.com/v1"}' \
+  api-proxy:local
+```
+
+Health check:
+
+```sh
+curl http://localhost:8080/healthz
+```
+
+Optional Docker smoke test with a mock upstream:
+
+```sh
+./scripts/local-smoke-test.sh
+```
+
+or:
+
+```sh
+make smoke-test
+```
+
+## Publishing from local Docker
+
+Log in to GitHub Container Registry first:
+
+```sh
+docker login ghcr.io
+```
+
+Then publish a multi-arch image for x64 QNAP plus arm64:
+
+```sh
+make publish TAG=latest
+```
+
+Defaults:
+
+- `PLATFORMS=linux/amd64,linux/arm64`
+- `TAG=latest`
+
+To publish only the x64 QNAP image:
+
+```sh
+make publish PLATFORMS=linux/amd64
+```
+
+## Notes
+
+- The proxy passes client request headers and bodies through to upstreams.
+- API keys should be supplied by clients in normal provider-specific headers.
+- If HTTPS is enabled, do not use a broad Cloudflare API token; use the narrowest zone-scoped token possible.
+- For QNAP x64 systems, use an image that includes `linux/amd64`. The GitHub workflow and `make publish` include `linux/amd64` by default and also publish `linux/arm64` for broader compatibility.
